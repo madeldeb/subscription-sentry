@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Subscription Sentry — cancel-before-you-pay</title>
+  <style>
+    :root{
+      --bg:#0b0f19;--panel:#11162a;--muted:#9aa4bf;--text:#e8eeff;--brand:#6aa6ff;--brand2:#9b8cff;--red:#ff6b6b;--amber:#ffb020;--green:#3ddc97;--border:#1d2442;
+      --shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
+      --radius:16px
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; background:radial-gradient(1200px 1200px at 10% -20%, #1a2244 0%, #0b0f19 40%) , var(--bg); color:var(--text)}
+    a{color:var(--brand);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 20px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+    .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;box-shadow:var(--shadow)}
+    .logo svg{filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+    h1{font-size: clamp(22px, 3vw, 30px);margin:0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns: repeat(12,1fr);gap:16px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)),var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .pad{padding:16px}
+    .kpi{display:flex;align-items:center;justify-content:space-between}
+    .kpi h3{margin:0 0 4px;font-size:14px;color:var(--muted)}
+    .kpi .big{font-size:26px;font-weight:700}
+    .tag{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:12px}
+    .tag svg{opacity:.8}
+    .btn{appearance:none;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);border-radius:12px;padding:10px 14px;font-size:14px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));border:none}
+    .btn.destructive{background:rgba(255,0,0,.08);border-color:#ff8181}
+    .btn.small{padding:6px 10px;border-radius:10px;font-size:12px}
+    .btn[disabled]{opacity:.55;cursor:not-allowed}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px}
+    .search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:12px;padding:8px 12px}
+    .search input{all:unset;width:240px}
+    table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px}
+    thead th{position:sticky;top:0;background:var(--panel);z-index:2}
+    th,td{text-align:left;padding:12px;border-bottom:1px dashed rgba(255,255,255,.07)}
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    .status{padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border)}
+    .status.active{background:rgba(61,220,151,.1);border-color:#2fbf8a}
+    .status.trial{background:rgba(255,176,32,.12);border-color:#ffb020}
+    .status.canceled{background:rgba(255,107,107,.1);border-color:#ff6b6b}
+    .right{display:flex;justify-content:flex-end}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row .field{flex:1;min-width:180px}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field input,.field select,.field textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text)}
+    .field textarea{min-height:64px}
+    .modal{position:fixed;inset:0;background:rgba(6,9,18,.6);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal.open{display:flex}
+    .modal .content{max-width:760px;width:100%}
+    .pill{border:1px solid var(--border);padding:8px 12px;border-radius:999px}
+    .danger{color:#ff9b9b}
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .notice{font-size:12px;color:var(--muted)}
+    .hl{color:#fff}
+    .linkish{cursor:pointer;color:var(--brand)}
+    .hidden{display:none}
+    .nudge{font-size:12px;color:var(--muted)}
+    .chip{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px}
+    .flex{display:flex;gap:8px;align-items:center}
+    .left{justify-content:flex-start}
+    .wrap p{line-height:1.5}
+    .selectable{user-select:all}
+    .nowrap{white-space:nowrap}
+    .testpass{color:var(--green)}
+    .testfail{color:var(--red)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3l2.4 4.86L20 9l-4 3.9L17 19l-5-2.7L7 19l1-6.1L4 9l5.6-1.14L12 3z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Subscription Sentry <span class="muted">— cancel before you pay</span></h1>
+        <div class="muted" style="margin-top:4px">Track trials & renewals, get ahead with reminders, export calendar alerts, and one‑click cancel searches — all stored locally in your browser.</div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn primary" id="addBtn" title="Add a subscription">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        Add
+      </button>
+    </header>
+
+    <section class="grid">
+      <div class="card pad" style="grid-column: span 4;">
+        <div class="kpi">
+          <div>
+            <h3>Next 30 days</h3>
+            <div class="big" id="kpiUpcoming">0 renewals</div>
+          </div>
+          <span class="tag" title="Trials ending or subscriptions renewing soon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Alerts</span>
+        </div>
+      </div>
+      <div class="card pad" style="grid-column: span 4;">
+        <div class="kpi">
+          <div>
+            <h3>Monthly spend (active)</h3>
+            <div class="big" id="kpiMonthly">£0</div>
+          </div>
+          <span class="tag" title="Estimated monthly cost converted from cycles">≈ per month</span>
+        </div>
+      </div>
+      <div class="card pad" style="grid-column: span 4;">
+        <div class="kpi">
+          <div>
+            <h3>Trials ending soon</h3>
+            <div class="big" id="kpiTrials">0</div>
+          </div>
+          <span class="tag" title="Active trials ending within 14 days">≤ 14 days</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad" style="margin-top:16px">
+      <div class="toolbar">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="search" placeholder="Search subscriptions… (name, notes, URL)" />
+        </div>
+        <select id="filterStatus" class="pill">
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="trial">Trial</option>
+          <option value="canceled">Canceled</option>
+        </select>
+        <select id="filterWindow" class="pill">
+          <option value="all">Any date</option>
+          <option value="30">Due in 30 days</option>
+          <option value="14">Due in 14 days</option>
+          <option value="7">Due in 7 days</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <button class="btn" id="exportCsv">Export CSV</button>
+        <label class="btn" for="importCsvInput" title="Import CSV">Import CSV<input id="importCsvInput" type="file" accept="text/csv" style="display:none"></label>
+        <button class="btn" id="exportIcs" title="Create calendar reminders (.ics)">Export .ics</button>
+        <button class="btn" id="demoData">Load demo data</button>
+        <button class="btn destructive" id="wipeAll">Wipe all</button>
+      </div>
+
+      <table id="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="linkish" data-sort="name">Name</th>
+            <th>Cost</th>
+            <th>Cycle</th>
+            <th class="linkish" data-sort="nextRenewal">Next renewal</th>
+            <th class="linkish" data-sort="trialEnd">Trial end</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <div class="footer">
+        <div class="notice">💡 Tip: Click a name to edit. Use “Find cancel page” to jump to the provider’s cancellation help. Export an .ics file to get phone calendar alerts before renewals.</div>
+        <div class="flex left">
+          <span id="selectedCount" class="muted">0 selected</span>
+          <button class="btn small" id="bulkCancel">Mark selected canceled</button>
+          <button class="btn small" id="bulkIcs">.ics for selected</button>
+          <button class="btn small" id="bulkDelete">Delete selected</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad" style="margin-top:16px">
+      <h3 style="margin:0 0 10px">Quick tools</h3>
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>Paste any email or text — we’ll try to detect a trial end or renewal date</label>
+          <textarea id="smartPaste" placeholder="Paste text like: ‘Your trial ends on 3 October 2025 and renews at £12.99 per month…’"></textarea>
+        </div>
+        <div class="field" style="min-width:220px">
+          <label>&nbsp;</label>
+          <button class="btn" id="parseBtn">Parse & prefill form</button>
+          <div class="nudge" id="parseResult"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad" style="margin-top:16px">
+      <details>
+        <summary class="linkish">How to use (and why this helps)</summary>
+        <div style="margin-top:10px">
+          <ol>
+            <li>Add each trial/subscription with the trial end and/or next renewal date.</li>
+            <li>Set a reminder lead time (e.g., 7 days). Export an .ics to drop alerts into your calendar.</li>
+            <li>Click “Find cancel page” to jump straight to the provider’s cancellation help.</li>
+            <li>Mark as <span class="status trial">trial</span>, <span class="status active">active</span>, or <span class="status canceled">canceled</span> so the dashboard reflects real spend.</li>
+            <li>Use CSV export/import to back up or move data. Everything lives in your browser (no account).</li>
+          </ol>
+        </div>
+      </details>
+    </section>
+
+    <section class="card pad" style="margin-top:16px">
+      <details id="selftests">
+        <summary class="linkish">Developer self‑tests (optional)</summary>
+        <div class="nudge" style="margin:8px 0">Run quick checks for ICS escaping, CSV round‑trip, parser, etc. They run entirely in your browser.</div>
+        <button class="btn small" id="runTests">Run self‑tests</button>
+        <pre id="testOutput" style="white-space:pre-wrap;background:rgba(255,255,255,.04);padding:12px;border-radius:12px;border:1px solid var(--border);margin-top:10px"></pre>
+      </details>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="content card pad">
+      <h3 id="formTitle" style="margin-top:0">Add subscription</h3>
+      <form id="form">
+        <div class="row">
+          <div class="field"><label>Name *</label><input id="name" required placeholder="e.g., The Times, Skillshare, Netflix"></div>
+          <div class="field"><label>Provider URL</label><input id="url" placeholder="https://…"></div>
+          <div class="field"><label>Cancel/Manage URL</label><input id="cancelUrl" placeholder="Direct account/cancel link if known"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Cost</label><input id="cost" type="number" step="0.01" placeholder="e.g., 9.99"></div>
+          <div class="field"><label>Currency</label>
+            <select id="currency">
+              <option>£</option><option>$</option><option>€</option><option>₹</option><option>¥</option>
+            </select>
+          </div>
+          <div class="field"><label>Billing cycle</label>
+            <select id="cycle">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom days…</option>
+            </select>
+          </div>
+          <div class="field" id="customDaysWrap" style="display:none"><label>Custom days</label><input id="customDays" type="number" min="1" placeholder="e.g., 90"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Trial end (if any)</label><input id="trialEnd" type="date"></div>
+          <div class="field"><label>Next renewal date *</label><input id="nextRenewal" type="date" required></div>
+          <div class="field"><label>Reminder lead time (days)</label><input id="lead" type="number" min="0" value="7"></div>
+          <div class="field"><label>Status</label>
+            <select id="status">
+              <option value="trial">trial</option>
+              <option value="active" selected>active</option>
+              <option value="canceled">canceled</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="flex:2"><label>Notes</label><textarea id="notes" placeholder="Any details (plan tier, account email, etc.)"></textarea></div>
+        </div>
+        <div class="footer">
+          <div class="flex left">
+            <span class="chip"><input id="autoRenew" type="checkbox" checked> Auto‑renews</span>
+          </div>
+          <div class="flex right">
+            <button type="button" class="btn" id="cancelBtn">Close</button>
+            <button class="btn primary" id="saveBtn" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Email template drawer -->
+  <div class="modal" id="emailModal">
+    <div class="content card pad" style="max-width:720px">
+      <h3 style="margin-top:0">Cancellation email template</h3>
+      <p class="muted">Copy, tweak, and send from the account email you used to sign up.</p>
+      <pre id="emailTemplate" class="selectable" style="white-space:pre-wrap;background:rgba(255,255,255,.04);padding:12px;border-radius:12px;border:1px solid var(--border)"></pre>
+      <div class="right" style="gap:8px">
+        <button class="btn" id="selectEmail">Select text</button>
+        <button class="btn" id="copyEmail">Copy to clipboard</button>
+        <button class="btn" id="closeEmail">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const el = id => document.getElementById(id);
+  const state = { items: load(), sort: {key:'nextRenewal', dir:'asc'}, selected:new Set(), editingId:null };
+
+  function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36) }
+  function save(){ localStorage.setItem('subs_v1', JSON.stringify(state.items)); render() }
+  function load(){ try{ return JSON.parse(localStorage.getItem('subs_v1')||'[]') }catch(e){ return [] } }
+
+  function fmtMoney(cur, n){ if(!n && n!==0) return ''; const f = Number(n); return (cur||'£') + (isNaN(f)? n : f.toFixed(2)) }
+  function fmtDate(d){ if(!d) return ''; const x=new Date(d); if(isNaN(x)) return ''; return x.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) }
+  function daysUntil(dateStr){ if(!dateStr) return Infinity; const t = new Date(dateStr).setHours(0,0,0,0); const now = new Date().setHours(0,0,0,0); return Math.round((t-now)/86400000) }
+  function monthlyCost(item){ const c = Number(item.cost||0); const cycle=item.cycle||'monthly'; if(!c) return 0; if(cycle==='monthly') return c; if(cycle==='yearly') return c/12; if(cycle==='custom'){ const d=Math.max(1, Number(item.customDays||30)); return c*(30/d) } return c }
+
+  function computeKPIs(){
+    const today = new Date().setHours(0,0,0,0);
+    const in30 = new Date(today + 30*86400000);
+    const upcoming = state.items.filter(i=> i.status!=='canceled' && i.nextRenewal && new Date(i.nextRenewal)>=today && new Date(i.nextRenewal)<=in30).length;
+    el('kpiUpcoming').textContent = upcoming + (upcoming===1? ' renewal':' renewals');
+    const monthly = state.items.filter(i=> i.status==='active').reduce((a,i)=>a+monthlyCost(i),0);
+    const cur = guessCurrency();
+    el('kpiMonthly').textContent = cur + monthly.toFixed(2);
+    const trials = state.items.filter(i=> i.status!=='canceled' && i.trialEnd && daysUntil(i.trialEnd) <= 14 && daysUntil(i.trialEnd)>=-1).length;
+    el('kpiTrials').textContent = trials;
+  }
+
+  function guessCurrency(){
+    const first = state.items.find(i=>i.currency); return first? first.currency : '£';
+  }
+
+  function render(){
+    computeKPIs();
+    const q = (el('search').value||'').toLowerCase();
+    const status = el('filterStatus').value;
+    const win = el('filterWindow').value;
+
+    let rows = state.items.slice();
+    if(q){ rows = rows.filter(i=> (i.name||'').toLowerCase().includes(q) || (i.notes||'').toLowerCase().includes(q) || (i.url||'').toLowerCase().includes(q) ) }
+    if(status!=='all'){ rows = rows.filter(i=> i.status===status) }
+    if(win!=='all'){
+      const today = new Date().setHours(0,0,0,0);
+      if(win==='overdue') rows = rows.filter(i=> i.nextRenewal && new Date(i.nextRenewal) < today && i.status!=='canceled');
+      else {
+        const limit = new Date(today + Number(win)*86400000);
+        rows = rows.filter(i=> i.nextRenewal && new Date(i.nextRenewal) >= today && new Date(i.nextRenewal) <= limit)
+      }
+    }
+    const {key,dir}=state.sort;
+    rows.sort((a,b)=>{
+      const A = a[key]||''; const B = b[key]||'';
+      if(key==='nextRenewal' || key==='trialEnd'){ return (new Date(A)-new Date(B)) * (dir==='asc'?1:-1) }
+      return (''+A).localeCompare(''+B, undefined, {numeric:true,sensitivity:'base'}) * (dir==='asc'?1:-1);
+    })
+
+    const tbody = el('tbody'); tbody.innerHTML='';
+    rows.forEach(item=>{
+      const tr = document.createElement('tr');
+      const sel = document.createElement('td'); sel.innerHTML = `<input type="checkbox" ${state.selected.has(item.id)?'checked':''}>`;
+      sel.querySelector('input').addEventListener('change',e=>{ if(e.target.checked) state.selected.add(item.id); else state.selected.delete(item.id); updateSelectedCount() });
+      tr.appendChild(sel);
+
+      const name = document.createElement('td');
+      name.innerHTML = `<div class="flex left"><a class="hl linkish">${escapeHtml(item.name||'Untitled')}</a>${item.url?`<a href="${item.url}" target="_blank" title="Open site" class="muted">↗</a>`:''}</div><div class="muted" style="font-size:12px">${escapeHtml(item.notes||'')}</div>`;
+      name.querySelector('a.hl').addEventListener('click',()=> openForm(item.id));
+      tr.appendChild(name);
+
+      const cost = document.createElement('td'); cost.textContent = fmtMoney(item.currency, item.cost); tr.appendChild(cost);
+      const cyc = document.createElement('td'); cyc.textContent = item.cycle==='custom'?`Every ${item.customDays||''}d` : item.cycle; tr.appendChild(cyc);
+
+      const nr = document.createElement('td');
+      const du = daysUntil(item.nextRenewal);
+      const warn = (du<= (Number(item.lead)||0)) && item.status!=='canceled';
+      nr.innerHTML = `${fmtDate(item.nextRenewal)} ${isFinite(du)? `<div class="nudge ${du<0?'danger':''}">${du<0? Math.abs(du)+ ' days ago' : du===0? 'today' : 'in '+du+' days'}</div>`:''} ${warn?'<span class="chip">⏰ due soon</span>':''}`;
+      tr.appendChild(nr);
+
+      const te = document.createElement('td');
+      const dt = item.trialEnd? daysUntil(item.trialEnd):null;
+      te.innerHTML = item.trialEnd? `${fmtDate(item.trialEnd)} <div class="nudge ${dt<0?'danger':''}">${dt<0? Math.abs(dt)+' days ago': dt===0? 'today' : 'in '+dt+' days'}</div>` : '<span class="muted">—</span>';
+      tr.appendChild(te);
+
+      const st = document.createElement('td'); st.innerHTML = `<span class="status ${item.status}">${item.status}</span>`; tr.appendChild(st);
+
+      const actions = document.createElement('td');
+      actions.innerHTML = `
+        <div class="flex left">
+          <button class="btn small" data-act="email">Email template</button>
+          <button class="btn small" data-act="search">Find cancel page</button>
+          ${item.cancelUrl? `<a class="btn small" href="${item.cancelUrl}" target="_blank">Open cancel link</a>`:''}
+          <button class="btn small" data-act="ics">.ics</button>
+          <button class="btn small" data-act="cancel">Mark canceled</button>
+          <button class="btn small" data-act="delete">Delete</button>
+        </div>`;
+      actions.querySelectorAll('button, a').forEach(btn=>{
+        btn.addEventListener('click', (e)=> handleRowAction(item, e.target.getAttribute('data-act')));
+      })
+      tr.appendChild(actions);
+
+      tbody.appendChild(tr);
+    })
+
+    updateSelectedCount();
+  }
+
+  function updateSelectedCount(){ el('selectedCount').textContent = state.selected.size+ ' selected' }
+
+  function openForm(id){
+    const edit = state.items.find(i=>i.id===id);
+    state.editingId = edit? edit.id : null;
+    el('formTitle').textContent = edit? 'Edit subscription' : 'Add subscription';
+    el('name').value = edit?.name||'';
+    el('url').value = edit?.url||'';
+    el('cancelUrl').value = edit?.cancelUrl||'';
+    el('cost').value = edit?.cost||'';
+    el('currency').value = edit?.currency||'£';
+    el('cycle').value = edit?.cycle||'monthly';
+    el('customDays').value = edit?.customDays||'';
+    toggleCustom();
+    el('trialEnd').value = toInputDate(edit?.trialEnd);
+    el('nextRenewal').value = toInputDate(edit?.nextRenewal || todayStr());
+    el('lead').value = edit?.lead ?? 7;
+    el('status').value = edit?.status||'active';
+    el('notes').value = edit?.notes||'';
+    el('autoRenew').checked = edit?.autoRenew ?? true;
+    el('modal').classList.add('open');
+  }
+
+  function toInputDate(s){ if(!s) return ''; const d=new Date(s); if(isNaN(d)) return ''; return d.toISOString().slice(0,10) }
+  function todayStr(){ return new Date().toISOString().slice(0,10) }
+  function toggleCustom(){ const show = el('cycle').value==='custom'; el('customDaysWrap').style.display = show?'block':'none' }
+
+  function handleRowAction(item, act){
+    if(act==='delete'){
+      if(confirm('Delete this entry?')){ state.items = state.items.filter(i=>i.id!==item.id); state.selected.delete(item.id); save() }
+    } else if(act==='cancel'){
+      item.status='canceled'; save();
+    } else if(act==='search'){
+      const q = encodeURIComponent(`cancel ${item.name||''} subscription`);
+      window.open(`https://duckduckgo.com/?q=${q}`,'_blank');
+    } else if(act==='ics'){
+      downloadIcs([item]);
+    } else if(act==='email'){
+      openEmailTemplate(item);
+    }
+  }
+
+  // Form events
+  el('addBtn').addEventListener('click',()=> openForm(null));
+  el('cancelBtn').addEventListener('click',()=> el('modal').classList.remove('open'));
+  el('cycle').addEventListener('change', toggleCustom);
+  el('form').addEventListener('submit', e=>{
+    e.preventDefault();
+    const item = {
+      id: state.editingId || uid(),
+      name: el('name').value.trim(),
+      url: normalizeUrl(el('url').value.trim()),
+      cancelUrl: normalizeUrl(el('cancelUrl').value.trim()),
+      cost: Number(el('cost').value||0),
+      currency: el('currency').value,
+      cycle: el('cycle').value,
+      customDays: Number(el('customDays').value||0)||null,
+      trialEnd: el('trialEnd').value||'',
+      nextRenewal: el('nextRenewal').value,
+      lead: Number(el('lead').value||0),
+      status: el('status').value,
+      notes: el('notes').value.trim(),
+      autoRenew: el('autoRenew').checked,
+      createdAt: (state.items.find(i=>i.id===state.editingId)?.createdAt) || new Date().toISOString()
+    };
+    if(!item.name){ alert('Name is required'); return }
+    if(!item.nextRenewal){ alert('Next renewal date is required'); return }
+
+    const idx = state.items.findIndex(i=>i.id===item.id);
+    if(idx>=0) state.items[idx]=item; else state.items.push(item);
+    state.editingId=null; el('modal').classList.remove('open'); save();
+  })
+
+  function normalizeUrl(u){ if(!u) return ''; try{ if(!/^https?:\/\//i.test(u)) u='https://'+u; return new URL(u).toString() }catch(e){ return '' } }
+
+  // Search & filters
+  ['search','filterStatus','filterWindow'].forEach(id=> el(id).addEventListener('input', render));
+  // Sorting headers
+  document.querySelectorAll('th.linkish').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const key = th.getAttribute('data-sort');
+      if(state.sort.key===key) state.sort.dir = state.sort.dir==='asc'?'desc':'asc'; else {state.sort.key=key;state.sort.dir='asc'}
+      render();
+    })
+  })
+
+  // CSV
+  el('exportCsv').addEventListener('click',()=>{
+    const fields = ['id','name','url','cancelUrl','cost','currency','cycle','customDays','trialEnd','nextRenewal','lead','status','notes','autoRenew','createdAt'];
+    const rows = [fields.join(',')].concat(state.items.map(i=> fields.map(f=> csvEscape(i[f])).join(',')));
+    download('subscriptions.csv', rows.join('\n'), 'text/csv');
+  })
+  el('importCsvInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0]; if(!file) return; const text = await file.text();
+    const {items} = parseCsv(text); if(!items.length){ alert('No rows found'); return }
+    if(!confirm(`Import ${items.length} rows and replace current data?`)) return;
+    state.items = items; save(); e.target.value='';
+  })
+
+  function csvEscape(v){ if(v===undefined||v===null) return ''; const s=String(v).replaceAll('"','""'); return /[",\n]/.test(s) ? '"'+s+'"' : s }
+  function parseCsv(text){
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const header = splitCsv(lines.shift());
+    const items = lines.map(line=>{
+      const cells = splitCsv(line); const obj={}; header.forEach((h,i)=> obj[h]=cells[i]);
+      obj.cost = Number(obj.cost||0);
+      obj.customDays = obj.customDays? Number(obj.customDays): null;
+      obj.lead = Number(obj.lead||0);
+      obj.autoRenew = String(obj.autoRenew).toLowerCase()==='true';
+      return obj;
+    });
+    return {items};
+  }
+  function splitCsv(line){
+    const out=[]; let cur=''; let q=false; for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(q){ if(c==='"' && line[i+1]==='"'){ cur+='"'; i++; } else if(c==='"'){ q=false; } else { cur+=c }
+      } else { if(c==='"'){ q=true } else if(c===','){ out.push(cur); cur='' } else { cur+=c } }
+    } out.push(cur); return out;
+  }
+
+  // ICS
+  el('exportIcs').addEventListener('click',()=>{
+    const dueSoon = state.items.filter(i=> i.status!=='canceled' && i.nextRenewal);
+    downloadIcs(dueSoon);
+  })
+  el('bulkIcs').addEventListener('click',()=>{
+    const chosen = state.items.filter(i=> state.selected.has(i.id)); if(!chosen.length){ alert('No rows selected'); return }
+    downloadIcs(chosen);
+  })
+
+  function downloadIcs(items){
+    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Subscription Sentry//EN'];
+    items.forEach(i=>{
+      const dt = toIcsDate(i.nextRenewal);
+      const lead = Math.max(0, Number(i.lead)||0);
+      const alarmTrigger = `TRIGGER:-P${lead}D`;
+      const title = `Renewal: ${i.name}`;
+      const cost = i.cost? ` at ${fmtMoney(i.currency,i.cost)} (${i.cycle})` : '';
+      const desc = `Auto-renews${cost}. Notes: ${i.notes||''}`;
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:'+ (i.id||uid())+'@subsentry');
+      lines.push('DTSTAMP:'+toIcsDate(new Date().toISOString()));
+      lines.push('DTSTART;VALUE=DATE:'+dt);
+      lines.push('SUMMARY:'+escapeIcs(title));
+      lines.push('DESCRIPTION:'+escapeIcs(desc));
+      lines.push('TRANSP:OPAQUE');
+      lines.push('BEGIN:VALARM');
+      lines.push(alarmTrigger);
+      lines.push('ACTION:DISPLAY');
+      lines.push('DESCRIPTION:'+escapeIcs(title));
+      lines.push('END:VALARM');
+      lines.push('END:VEVENT');
+    })
+    lines.push('END:VCALENDAR');
+    download('renewals.ics', lines.join('\n'), 'text/calendar');
+  }
+  function toIcsDate(s){ const d=new Date(s); const y=d.getFullYear(); const m=('0'+(d.getMonth()+1)).slice(-2); const da=('0'+d.getDate()).slice(-2); return `${y}${m}${da}` }
+  function escapeIcs(s){
+    // Safer plain-literal map (no computed keys) to avoid parser quirks
+    const map = { "\\":"\\\\", ";":"\\;", ",":"\\,", "\n":"\\n" };
+    return String(s||'').replace(/[\\;,\n]/g, (m)=> map[m] || m);
+  }
+
+  // Bulk actions
+  el('bulkCancel').addEventListener('click',()=>{
+    if(!state.selected.size){ alert('No rows selected'); return }
+    state.items.forEach(i=>{ if(state.selected.has(i.id)) i.status='canceled' }); save();
+  })
+  el('bulkDelete').addEventListener('click',()=>{
+    if(!state.selected.size){ alert('No rows selected'); return }
+    if(!confirm('Delete selected rows?')) return;
+    state.items = state.items.filter(i=> !state.selected.has(i.id)); state.selected.clear(); save();
+  })
+
+  // Smart parser
+  el('parseBtn').addEventListener('click',()=>{
+    const t = el('smartPaste').value; if(!t.trim()){ alert('Paste some text first'); return }
+    const out = extractInfo(t);
+    el('parseResult').innerHTML = out.summary;
+    openForm(null);
+    if(out.name) el('name').value = out.name;
+    if(out.cost) el('cost').value = out.cost;
+    if(out.currency) el('currency').value = out.currency;
+    if(out.trialEnd) el('trialEnd').value = out.trialEnd;
+    if(out.nextRenewal) el('nextRenewal').value = out.nextRenewal;
+  })
+
+  function extractInfo(t){
+    const s = t.replace(/\s+/g,' ').trim();
+    const nameMatch = s.match(/from ([A-Z][\w& ]{2,40})/i) || s.match(/Thanks for choosing ([A-Z][\w& ]{2,40})/i);
+    const name = nameMatch? nameMatch[1].trim() : '';
+
+    const currencyMatch = s.match(/(£|\$|€|₹|¥)\s?(\d+[\.,]?\d{0,2})/);
+    const currency = currencyMatch? currencyMatch[1]:'';
+    const cost = currencyMatch? currencyMatch[2].replace(',','.') : '';
+
+    const trialMatch = s.match(/trial (?:ends|ending|until) on ([A-Za-z]{3,9} \d{1,2},? \d{4}|\d{1,2} [A-Za-z]{3,9} \d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+    const renewalMatch = s.match(/renew(?:s|al)? (?:on|date) (?:is )?(\w+ \d{1,2},? \d{4}|\d{1,2} \w+ \d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})/i) || s.match(/will be charged on (\w+ \d{1,2},? \d{4}|\d{1,2} \w+ \d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+
+    function toISO(d){ if(!d) return ''; const x=new Date(d); if(isNaN(x)) return ''; return x.toISOString().slice(0,10) }
+
+    const trialEnd = toISO(trialMatch? trialMatch[1]: '');
+    const nextRenewal = toISO(renewalMatch? renewalMatch[1]: '');
+
+    const summary = `Detected: ${name? 'name: <b>'+escapeHtml(name)+'</b>; ':''}${currency? 'amount: <b>'+currency+cost+'</b>; ':''}${trialEnd? 'trial end: <b>'+trialEnd+'</b>; ':''}${nextRenewal? 'renewal: <b>'+nextRenewal+'</b>':''}` || 'No dates detected';
+
+    return {name, currency, cost, trialEnd, nextRenewal, summary};
+  }
+
+  // Email template
+  function openEmailTemplate(item){
+    const addr = (new URL(item.url||'https://example.com')).hostname;
+    const body = `Subject: Request to cancel subscription and delete auto-renewal\n\nHello ${item.name||'Support'},\n\nPlease cancel my subscription associated with this email address and disable auto-renewal effective immediately.\n\nService: ${item.name||''}\nAccount email: ____________________\nNext renewal date: ${fmtDate(item.nextRenewal)||'unknown'}\n\nUnder consumer protection laws, please confirm cancellation and any refunds due if renewed within the cooling-off period.\n\nThanks,\n[Your Name]`;
+    el('emailTemplate').textContent = body + `\n\n(If emailing, try support@${addr} or help@${addr}. Also check your account page.)`;
+    el('emailModal').classList.add('open');
+
+    // Adjust clipboard button hint in restricted contexts
+    const copyBtn = el('copyEmail');
+    if(copyBtn){
+      const copySupported = document.queryCommandSupported && document.queryCommandSupported('copy');
+      if(!copySupported){
+        copyBtn.title = 'Clipboard may be blocked here — use Select text then Ctrl/Cmd+C';
+      }
+    }
+  }
+
+  // Clipboard (sandbox‑safe): try execCommand on a hidden textarea; otherwise select text and prompt user to copy manually.
+  async function safeCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    try{ const ok = document.execCommand && document.execCommand('copy'); document.body.removeChild(ta); return !!ok; }catch(e){ document.body.removeChild(ta); return false }
+  }
+
+  function selectEmailText(){
+    const pre = el('emailTemplate');
+    const range = document.createRange(); range.selectNodeContents(pre);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  }
+
+  el('copyEmail').addEventListener('click', async ()=>{
+    const ok = await safeCopy(el('emailTemplate').textContent);
+    if(ok){ alert('Copied to clipboard'); }
+    else { selectEmailText(); alert('Clipboard is restricted here. The text is now selected — press Ctrl/Cmd+C to copy.'); }
+  })
+  el('selectEmail').addEventListener('click', selectEmailText);
+  el('closeEmail').addEventListener('click',()=> el('emailModal').classList.remove('open'));
+
+  // Helpers
+  function download(filename, data, mime){ const blob = new Blob([data], {type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000) }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>\"]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+
+  // Demo data & wipe
+  el('demoData').addEventListener('click',()=>{
+    if(!confirm('Load 5 demo items? This will replace your current list.')) return;
+    state.items = [
+      {id:uid(),name:'The Times (trial)',url:'https://thetimes.co.uk',cancelUrl:'',cost:0.00,currency:'£',cycle:'monthly',customDays:null,trialEnd:addDaysISO(13),nextRenewal:addDaysISO(14),lead:7,status:'trial',notes:'Free trial — cancel via account',autoRenew:true,createdAt:new Date().toISOString()},
+      {id:uid(),name:'Skillshare',url:'https://www.skillshare.com',cancelUrl:'',cost:139.00,currency:'£',cycle:'yearly',customDays:null,trialEnd:'',nextRenewal:addDaysISO(29),lead:7,status:'active',notes:'',autoRenew:true,createdAt:new Date().toISOString()},
+      {id:uid(),name:'Netflix',url:'https://netflix.com',cancelUrl:'https://www.netflix.com/CancelPlan',cost:10.99,currency:'£',cycle:'monthly',customDays:null,trialEnd:'',nextRenewal:addDaysISO(5),lead:3,status:'active',notes:'Basic tier',autoRenew:true,createdAt:new Date().toISOString()},
+      {id:uid(),name:'Coursera Plus (trial)',url:'https://www.coursera.org',cancelUrl:'',cost:49.00,currency:'£',cycle:'monthly',customDays:null,trialEnd:addDaysISO(-1),nextRenewal:addDaysISO(0),lead:1,status:'trial',notes:'Overdue — cancel today',autoRenew:true,createdAt:new Date().toISOString()},
+      {id:uid(),name:'Calm',url:'https://www.calm.com',cancelUrl:'',cost:34.99,currency:'£',cycle:'yearly',customDays:null,trialEnd:'',nextRenewal:addDaysISO(120),lead:14,status:'active',notes:'',autoRenew:true,createdAt:new Date().toISOString()},
+    ];
+    save();
+  })
+  function addDaysISO(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10) }
+
+  el('wipeAll').addEventListener('click',()=>{
+    if(!confirm('This will permanently erase all your saved subscriptions on this device. Continue?')) return;
+    state.items=[]; state.selected.clear(); save();
+  })
+
+  // Self‑tests (keep existing; add a few more without changing prior ones)
+  function runTests(){
+    const out=[]; const ok = (name,res,exp)=> out.push(`${res===exp? '✅':'❌'} ${name} → ${JSON.stringify(res)}${res===exp?'':' != '+JSON.stringify(exp)}`);
+    const assert = (name, cond)=> out.push(`${cond? '✅':'❌'} ${name}`);
+
+    // Existing tests
+    ok('escapeIcs \\ ; , \n', escapeIcs('a\\b;c,d\n'), 'a\\\\b\\;c\\,d\\n');
+    ok('toIcsDate', toIcsDate('2025-09-16'), '20250916');
+    const orig=[{id:'1',name:'Test',url:'https://x.com',cancelUrl:'',cost:10,currency:'£',cycle:'monthly',customDays:'',trialEnd:'',nextRenewal:'2025-09-20',lead:7,status:'active',notes:'n',autoRenew:true,createdAt:'2025-09-01'}];
+    const fields = ['id','name','url','cancelUrl','cost','currency','cycle','customDays','trialEnd','nextRenewal','lead','status','notes','autoRenew','createdAt'];
+    const csv=[fields.join(',')].concat(orig.map(i=> fields.map(f=> csvEscape(i[f])).join(','))).join('\n');
+    const parsed=parseCsv(csv).items; assert('CSV rows parsed', parsed.length===1);
+    ok('CSV value name', parsed[0].name, 'Test');
+    const sample = 'Your trial ends on 3 October 2025 and renews on 4 November 2025 at £12.99/month.';
+    const ex=extractInfo(sample); ok('extract currency', ex.currency, '£'); ok('extract cost', ex.cost, '12.99'); ok('trialEnd ISO', ex.trialEnd, '2025-10-03'); ok('nextRenewal ISO', ex.nextRenewal, '2025-11-04');
+    ok('monthlyCost monthly', monthlyCost({cost:12,cycle:'monthly'}), 12);
+    ok('monthlyCost yearly', Math.round(monthlyCost({cost:120,cycle:'yearly'})), 10);
+
+    // Additional tests
+    ok('escapeHtml', escapeHtml('<a & b>'), '&lt;a &amp; b&gt;');
+    ok('normalizeUrl add https', normalizeUrl('example.com').slice(0,8), 'https://');
+    ok('normalizeUrl keep https', normalizeUrl('https://example.com').startsWith('https://'), true);
+    ok('extractInfo alt date (DD/MM/YYYY)', extractInfo('Renews on 04/11/2025.').nextRenewal, '2025-11-04');
+    ok('daysUntil today', daysUntil(todayStr()), 0);
+
+    el('testOutput').textContent = out.join('\n');
+  }
+  const testsBtn = el('runTests'); if(testsBtn) testsBtn.addEventListener('click', runTests);
+
+  // Init
+  render();
+})();
+</script>
+</body>
+</html>
